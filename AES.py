@@ -184,16 +184,19 @@ def decrypt_block(block_16bytes, round_keys):
 
 # Ubah data
 def ubah_ke_bytes(data):
+    if isinstance(data, bytes):
+        return data
+
     data = data.strip()
     
-    if data.startswith("0x") or all(c in '0123456789abcdefABCDEF' for c in data if c != 'x'):
-        clean = data.replace("0x", "")
+    if data.startswith("0x") or data.startswith("0X"):
+        clean = data[2:]
         if len(clean) % 2 != 0: 
             clean = "0" + clean
         return bytes.fromhex(clean)
         
-    elif data.startswith("0b") or (set(data).issubset({'0', '1'}) and len(data) >= 8):
-        clean = data.replace("0b", "")
+    elif data.startswith("0b") or data.startswith("0B"):
+        clean = data[2:]
         angka = int(clean, 2)
         panjang = (angka.bit_length() + 7) // 8 or 1
         return angka.to_bytes(panjang, byteorder='big')
@@ -201,14 +204,14 @@ def ubah_ke_bytes(data):
     else:
         return data.encode('utf-8')
 
-
 def aes_encrypt(plaintext, key_str):
-  
     key_bytes = ubah_ke_bytes(key_str)
-
     key_bytes = key_bytes.ljust(16, b'\x00')[:16] 
     
-    pt_bytes = ubah_ke_bytes(plaintext) if isinstance(plaintext, str) else plaintext
+    if isinstance(plaintext, str):
+        pt_bytes = plaintext.encode('utf-8')
+    else:
+        pt_bytes = plaintext
     
     sisa = 16 - (len(pt_bytes) % 16)
     pt_padded = pt_bytes + bytes([sisa] * sisa)
@@ -219,7 +222,8 @@ def aes_encrypt(plaintext, key_str):
     for i in range(0, len(pt_padded), 16):
         ciphertext += encrypt_block(pt_padded[i:i+16], rkeys)
         
-    return ciphertext.hex() 
+    return ciphertext.hex()  
+
 
 def aes_decrypt(cipher_hex, key_str):
 
@@ -232,7 +236,7 @@ def aes_decrypt(cipher_hex, key_str):
     
     for i in range(0, len(ct_bytes), 16):
         decrypted += decrypt_block(ct_bytes[i:i+16], rkeys)
-        
+
     pad_len = decrypted[-1]
     unpadded = decrypted[:-pad_len]
     return unpadded.decode('utf-8', errors='ignore')
